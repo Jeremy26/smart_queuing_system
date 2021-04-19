@@ -43,10 +43,11 @@ class PersonDetect:
         self.model_structure=model_name+'.xml'
         self.device=device
         self.threshold=threshold
+        self.core = IECore()
 
         try:
-            self.core = IECore()
-            self.model=core.read_network(model=model_structure, weights=model_weights)
+            self.model=self.core.read_network(model=self.model_structure, weights=self.model_weights)
+            
         except Exception as e:
             raise ValueError("Could not Initialise the network. Have you enterred the correct model path?")
 
@@ -56,59 +57,60 @@ class PersonDetect:
         self.output_shape=self.model.outputs[self.output_name].shape
 
     def load_model(self):
-    '''
-    TODO: This method needs to be completed by you
-    '''
-        self.net = self.core.load_network(network=self.model, device_name=self.device, num_requests=1)
+        '''
+        TODO: This method needs to be completed by you
+        '''
+        self.net = self.core.load_network(self.model, self.device)#, num_requests=1)
     
     def predict(self, image):
-    '''
-    TODO: This method needs to be completed by you
-    '''
+        '''
+        TODO: This method needs to be completed by you
+        '''
         input_name = self.input_name
         input_img = self.preprocess_input(image)
         input_dict={input_name: input_img}  
         
         infer_request_handle = self.net.start_async(request_id=0, inputs=input_dict)
-        infer_status = infer_request_handle.wait()
+        
+        if self.net.requests[0].wait(-1) == 0:
+            outputs = self.net.requests[0].outputs[self.output_name]
+            conf_box = self.preprocess_outputs(outputs)
+            scaled_box, image = self.draw_outputs(conf_box, image)            
+            return scaled_box, image
+        
+        '''infer_status = infer_request_handle.wait()
         if infer_status == 0:
             outputs = infer_request_handle.outputs[self.output_name]
+        '''    
         return outputs, image
     
-    def draw_outputs(self, coords, image):
-    '''
-    TODO: This method needs to be completed by you
-    '''
-    current_count = 0
-    det = []        
-    for obj in coords[0][0]:
-        if obj[2] > self.threshold:
-            xmin = int(obj[3] * initial_w)
-            ymin = int(obj[4] * initial_h)
-            xmax = int(obj[5] * initial_w)
-            ymax = int(obj[6] * initial_h)
-            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 55, 255), 1)
-            current_count = current_count + 1
+    def draw_outputs(self, coords, image):    
+        scaled_box = []
+        for box in coords:
+            xmin = int(box[3] * image.shape[1])
+            ymin = int(box[4] * image.shape[0])
+            xmax = int(box[5] * image.shape[1])
+            ymax = int(box[6] * image.shape[0])
+            cv2.rectangle(image, (xmin, ymin), (xmax, ymax), (0,0,255), 5)
+            scaled_box.append([xmin, ymin, xmax, ymax])
+        return scaled_box, image
 
-            det.append(obj)
-    return frame, current_count, det
-
+    
     def preprocess_outputs(self, outputs):
         """
         TODO: This method needs to be completed by you
         """
-        output_dict = {}
-        for output in outputs:
-            output_name = self.output_name
-            output_img = output
-            output_dict[output_name] = output_img
-
-        return output_dict
+        conf_box = []
+        for box in outputs[0][0]:
+            conf = box[2]
+            if conf > self.threshold:
+                conf_box.append(box)
+        return conf_box
 
     def preprocess_input(self, image):
-    '''
-    TODO: This method needs to be completed by you
-    '''
+        '''
+        TODO: This method needs to be completed by you
+        '''
         input_img = image       
         n, c, h, w = self.input_shape
         input_img=cv2.resize(input_img, (w, h), interpolation = cv2.INTER_AREA)

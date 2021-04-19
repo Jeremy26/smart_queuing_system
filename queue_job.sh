@@ -3,15 +3,15 @@
 exec 1>/output/stdout.log 2>/output/stderr.log
 
 # TODO: Create MODEL variable
-MODEL = $1
+MODEL=$1
 # TODO: Create DEVICE variable
-DEVICE = $2
+DEVICE=$2
 # TODO: Create VIDEO variable
-VIDEO = $3
+VIDEO=$3
 QUEUE=$4
 OUTPUT=$5
 # TODO: Create PEOPLE variable
-PEOPLE = $6
+PEOPLE=$6
 
 mkdir -p $5
 
